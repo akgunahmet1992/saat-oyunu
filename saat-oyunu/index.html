@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Saatler">
+  <meta name="theme-color" content="#6ec6ff">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <title>Neşeli Saatler 🕐</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      touch-action: none;
+      background: linear-gradient(175deg, #6ec6ff 0%, #a8dcff 45%, #d9f0ff 75%, #fff3c4 100%);
+    }
+
+    /* ---------- gece katmanı ---------- */
+    #nightsky {
+      position: fixed; inset: 0; z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(175deg, #1a2456 0%, #2c3a75 55%, #4a4a8f 85%, #6b5a9e 100%);
+      opacity: 0;
+      transition: opacity 9s ease;
+    }
+    body.night #nightsky { opacity: 1; }
+    .star {
+      position: absolute;
+      color: #fff9d9; line-height: 1;
+      animation: twinkle ease-in-out infinite alternate;
+      text-shadow: 0 0 8px rgba(255,249,200,0.9);
+    }
+    @keyframes twinkle {
+      from { opacity: 0.25; transform: scale(0.8); }
+      to   { opacity: 1;    transform: scale(1.15); }
+    }
+    #moon {
+      position: absolute; top: 64px; right: 26px;
+      font-size: 64px; line-height: 1;
+      filter: drop-shadow(0 0 26px rgba(255,244,180,0.9));
+      animation: moonfloat 5s ease-in-out infinite alternate;
+    }
+    @keyframes moonfloat {
+      from { transform: translateY(0) rotate(-6deg); }
+      to   { transform: translateY(10px) rotate(6deg); }
+    }
+
+    /* ---------- gökyüzü: güneş + bulutlar ---------- */
+    #sky { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+    #sunwrap {
+      position: absolute; top: 58px; left: 16px;
+      width: 96px; height: 96px;
+      transition: opacity 9s ease, transform 9s ease;
+      animation: sunpulse 3.4s ease-in-out infinite;
+      filter: drop-shadow(0 0 26px rgba(255,220,80,0.75));
+    }
+    body.night #sunwrap { opacity: 0; transform: translateY(70px) scale(0.8); }
+    @keyframes sunpulse {
+      0%, 100% { scale: 1; }
+      50%      { scale: 1.09; }
+    }
+    #sunrays { transform-box: view-box; transform-origin: 50px 50px; animation: rayspin 24s linear infinite; }
+    @keyframes rayspin { to { transform: rotate(360deg); } }
+    .cloud {
+      position: absolute;
+      font-size: 90px; line-height: 1;
+      opacity: 0.85;
+      animation: clouddrift linear infinite;
+      filter: drop-shadow(0 6px 10px rgba(120,160,200,0.25));
+      transition: opacity 9s ease;
+    }
+    body.night .cloud { opacity: 0.22; }
+    @keyframes clouddrift {
+      from { transform: translateX(-160px); }
+      to   { transform: translateX(calc(100vw + 160px)); }
+    }
+
+    /* ---------- tepeler ---------- */
+    #hills {
+      position: fixed; left: 0; right: 0; bottom: 0; height: 170px;
+      z-index: 3; pointer-events: none;
+      transition: filter 9s ease;
+    }
+    body.night #hills { filter: brightness(0.5) saturate(0.7); }
+    .hill { position: absolute; bottom: -55px; border-radius: 50% 50% 0 0; }
+    #hill1 { left: -22%;  width: 85%; height: 165px; background: linear-gradient(#8ed86e, #58b356); }
+    #hill2 { right: -28%; width: 95%; height: 130px; background: linear-gradient(#a5e488, #6fc468); }
+    .flower {
+      position: absolute; bottom: 38px;
+      font-size: 30px; line-height: 1;
+      animation: flowersway 2.6s ease-in-out infinite alternate;
+      transform-origin: bottom center;
+    }
+    @keyframes flowersway {
+      from { transform: rotate(-9deg); }
+      to   { transform: rotate(9deg); }
+    }
+
+    /* ---------- oyun katmanı ---------- */
+    #game { position: fixed; inset: 0; z-index: 5; overflow: hidden; }
+
+    .clock {
+      position: absolute;
+      bottom: -190px;
+      pointer-events: none;
+      will-change: transform;
+      animation: rise linear forwards;
+    }
+    @keyframes rise {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-145vh); }
+    }
+    .sway {
+      width: 100%; height: 100%;
+      animation: sway ease-in-out infinite alternate;
+      filter: drop-shadow(0 8px 14px rgba(30,60,110,0.3));
+    }
+    @keyframes sway {
+      from { transform: translateX(-13px) rotate(-4deg); }
+      to   { transform: translateX(13px)  rotate(4deg); }
+    }
+    .sway.burst {
+      animation: burst 0.32s ease-out forwards !important;
+    }
+    @keyframes burst {
+      0%   { transform: scale(1);    opacity: 1; }
+      45%  { transform: scale(1.45); opacity: 0.9; }
+      100% { transform: scale(0.05); opacity: 0; }
+    }
+
+    /* saat ibreleri ve göz kırpma */
+    .handm { transform-box: view-box; transform-origin: 50px 54px; animation: spin 3.5s linear infinite; }
+    .handh { transform-box: view-box; transform-origin: 50px 54px; animation: spin 42s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .eyes { transform-box: fill-box; transform-origin: center; animation: blink 3.6s infinite; }
+    @keyframes blink {
+      0%, 91%, 100% { transform: scaleY(1); }
+      95%           { transform: scaleY(0.08); }
+    }
+
+    /* ---------- efektler ---------- */
+    .spark {
+      position: fixed; pointer-events: none;
+      line-height: 1; z-index: 40;
+      animation: sparkfly 0.7s ease-out forwards;
+    }
+    @keyframes sparkfly {
+      from { opacity: 1; transform: translate(0,0) scale(0.6) rotate(0deg); }
+      to   { opacity: 0; transform: translate(var(--tx),var(--ty)) scale(1.4) rotate(var(--rot)); }
+    }
+    .confetti {
+      position: fixed; pointer-events: none; z-index: 41;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(115vh) rotate(720deg); opacity: 0; }
+    }
+    #bigparty {
+      position: fixed; left: 50%; top: 42%;
+      z-index: 45; pointer-events: none;
+      font-size: 110px; line-height: 1;
+      display: none;
+      transform: translate(-50%, -50%);
+    }
+    #bigparty.show { display: block; animation: partybounce 1.5s ease-out forwards; }
+    @keyframes partybounce {
+      0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0; }
+      35%  { transform: translate(-50%,-50%) scale(1.3); opacity: 1; }
+      55%  { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+      80%  { transform: translate(-50%,-50%) scale(1.1); opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(0.6); opacity: 0; }
+    }
+
+    /* ---------- guguklu saat ---------- */
+    #cuckoo {
+      position: fixed; left: 50%; top: -420px;
+      transform: translateX(-50%);
+      z-index: 60; pointer-events: none;
+      transition: top 0.8s cubic-bezier(0.34, 1.4, 0.64, 1);
+      filter: drop-shadow(0 14px 24px rgba(40,20,0,0.4));
+    }
+    #cuckoo.show { top: 10%; }
+    .c-roof {
+      width: 0; height: 0; margin: 0 auto;
+      border-left: 115px solid transparent;
+      border-right: 115px solid transparent;
+      border-bottom: 82px solid #7a4a22;
+    }
+    .c-body {
+      position: relative;
+      width: 190px; height: 205px; margin: 0 auto;
+      background: linear-gradient(#b07a3f, #96652f);
+      border-radius: 0 0 16px 16px;
+      border: 4px solid #7a4a22; border-top: none;
+    }
+    .c-face { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: 92px; height: 96px; }
+    .c-hole {
+      position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+      width: 92px; height: 74px;
+      background: #3a2410;
+      border-radius: 46px 46px 8px 8px;
+      overflow: visible;
+    }
+    .c-bird {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      font-size: 46px; line-height: 1;
+      transition: transform 0.35s cubic-bezier(0.34, 1.6, 0.64, 1);
+    }
+    #cuckoo.bird .c-bird { transform: translate(-50%, -58%) scale(1.35); }
+    .c-door {
+      position: absolute; top: 0; width: 50%; height: 100%;
+      background: linear-gradient(#c98f4e, #a9743a);
+      border: 2px solid #7a4a22;
+      transition: transform 0.45s ease;
+    }
+    .c-doorL { left: 0;  border-radius: 46px 0 0 8px; transform-origin: left center; }
+    .c-doorR { right: 0; border-radius: 0 46px 8px 0; transform-origin: right center; }
+    #cuckoo.open .c-doorL { transform: translateX(-54px) rotate(-14deg); opacity: 0.92; }
+    #cuckoo.open .c-doorR { transform: translateX(54px)  rotate(14deg);  opacity: 0.92; }
+
+    /* ---------- sayaç ---------- */
+    #hud {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 10px);
+      left: 0; right: 0;
+      text-align: center;
+      z-index: 10; pointer-events: none;
+    }
+    #count {
+      display: inline-block;
+      font-size: 2rem; font-weight: bold;
+      color: #fff;
+      background: rgba(30,80,150,0.35);
+      padding: 8px 26px; border-radius: 999px;
+      text-shadow: 0 2px 6px rgba(0,50,120,0.5);
+      backdrop-filter: blur(4px);
+    }
+    #count.bump { animation: bump 0.3s ease-out; }
+    @keyframes bump {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+
+    /* ---------- başlangıç ekranı ---------- */
+    #startscreen {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 26px;
+      background: linear-gradient(175deg, #6ec6ff 0%, #a8dcff 50%, #fff3c4 100%);
+      padding: 32px;
+    }
+    #startclock {
+      width: 175px; height: 182px;
+      animation: startwiggle 2.2s ease-in-out infinite;
+      filter: drop-shadow(0 10px 20px rgba(30,60,110,0.35));
+    }
+    @keyframes startwiggle {
+      0%, 100% { transform: rotate(-7deg) scale(1); }
+      50%      { transform: rotate(7deg)  scale(1.06); }
+    }
+    #startscreen h1 {
+      font-size: 2.4rem; color: #fff;
+      text-align: center; line-height: 1.3;
+      text-shadow: 0 3px 12px rgba(0,60,140,0.45);
+    }
+    #startbtn {
+      font-size: 2.2rem; padding: 22px 64px;
+      border-radius: 999px; border: none;
+      background: linear-gradient(135deg, #ff8a5c, #ff5e7e);
+      color: #fff; font-weight: bold; cursor: pointer;
+      box-shadow: 0 10px 28px rgba(255,94,126,0.45);
+      animation: btnpulse 1.6s ease-in-out infinite;
+    }
+    @keyframes btnpulse {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.07); }
+    }
+    #startbtn:active { transform: scale(0.92); }
+    #soundhint { font-size: 1rem; color: rgba(255,255,255,0.9); text-shadow: 0 1px 4px rgba(0,60,140,0.4); }
+  </style>
+</head>
+<body>
+
+  <div id="nightsky"><div id="moon">🌙</div></div>
+
+  <div id="sky">
+    <div id="sunwrap">
+      <svg viewBox="0 0 100 100" width="100%" height="100%">
+        <g id="sunrays" stroke="#ffd93d" stroke-width="5" stroke-linecap="round">
+          <line x1="50" y1="2"  x2="50" y2="14"/><line x1="50" y1="86" x2="50" y2="98"/>
+          <line x1="2"  y1="50" x2="14" y2="50"/><line x1="86" y1="50" x2="98" y2="50"/>
+          <line x1="16" y1="16" x2="24" y2="24"/><line x1="76" y1="76" x2="84" y2="84"/>
+          <line x1="16" y1="84" x2="24" y2="76"/><line x1="76" y1="24" x2="84" y2="16"/>
+        </g>
+        <circle cx="50" cy="50" r="27" fill="#ffd93d"/>
+        <circle cx="42" cy="46" r="3" fill="#7a5c00"/>
+        <circle cx="58" cy="46" r="3" fill="#7a5c00"/>
+        <path d="M 43 56 Q 50 62 57 56" stroke="#7a5c00" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <ellipse cx="36" cy="53" rx="4" ry="2.6" fill="#ffab6b" opacity="0.8"/>
+        <ellipse cx="64" cy="53" rx="4" ry="2.6" fill="#ffab6b" opacity="0.8"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="hills">
+    <div class="hill" id="hill1"></div>
+    <div class="hill" id="hill2"></div>
+    <div class="flower" style="left:12%">🌼</div>
+    <div class="flower" style="left:46%; animation-delay:-1.2s">🌷</div>
+    <div class="flower" style="left:78%; animation-delay:-0.6s">🌻</div>
+  </div>
+
+  <div id="game"></div>
+
+  <div id="hud"><span id="count">⭐ 0</span></div>
+  <div id="bigparty">🎉</div>
+
+  <div id="cuckoo">
+    <div class="c-roof"></div>
+    <div class="c-body">
+      <div class="c-hole">
+        <div class="c-doorL c-door"></div>
+        <div class="c-doorR c-door"></div>
+        <div class="c-bird">🐤</div>
+      </div>
+      <div class="c-face" id="cuckooface"></div>
+    </div>
+  </div>
+
+  <div id="startscreen">
+    <div id="startclock"></div>
+    <h1>Neşeli Saatler 🕐</h1>
+    <button id="startbtn">Oyna! ▶</button>
+    <div id="soundhint">🔊 Telefonun sesini aç!</div>
+  </div>
+
+  <script>
+    const RIM_COLORS = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7', '#9775fa', '#f783ac', '#3bc9db'];
+    const SPARKS = ['⭐', '✨', '🌟', '💛', '💫', '🧡'];
+    const PARTY = ['🎉', '🥳', '🌈', '🎈', '💖'];
+    const CONFETTI_COLORS = ['#ffd43b', '#ff6b6b', '#4dabf7', '#69db7c', '#9775fa', '#f783ac', '#ffa94d'];
+
+    // "Daha Dün Annemizin" — her patlatma melodinin sıradaki notasını çalar
+    const N = { C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880 };
+    const MELODY = [
+      'C5','C5','G5','G5','A5','A5','G5',
+      'F5','F5','E5','E5','D5','D5','C5',
+      'G5','G5','F5','F5','E5','E5','D5',
+      'G5','G5','F5','F5','E5','E5','D5',
+      'C5','C5','G5','G5','A5','A5','G5',
+      'F5','F5','E5','E5','D5','D5','C5'
+    ];
+
+    const game = document.getElementById('game');
+    const countEl = document.getElementById('count');
+    const startscreen = document.getElementById('startscreen');
+    const bigparty = document.getElementById('bigparty');
+    const cuckooEl = document.getElementById('cuckoo');
+
+    let running = false;
+    let count = 0;
+    let melodyIdx = 0;
+    let audioCtx = null;
+    let spawnTimer = null;
+    let nightTimer = null;
+    let cuckooBusy = false;
+    const activeClocks = new Set();
+
+    /* ---------- sevimli SVG saat (2 stil: çalar saat / cep saati) ---------- */
+    function clockSVG(rim, style) {
+      let ticks = '';
+      for (let i = 0; i < 12; i++) {
+        const a = i * Math.PI / 6;
+        const x1 = 50 + Math.sin(a) * 28.5, y1 = 54 - Math.cos(a) * 28.5;
+        const x2 = 50 + Math.sin(a) * 32.5, y2 = 54 - Math.cos(a) * 32.5;
+        ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#aab4c0" stroke-width="2.4" stroke-linecap="round"/>`;
+      }
+      let extras = '';
+      if (style === 'alarm') {
+        extras = `
+          <line x1="32" y1="92" x2="24" y2="101" stroke="${rim}" stroke-width="5" stroke-linecap="round"/>
+          <line x1="68" y1="92" x2="76" y2="101" stroke="${rim}" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="30" cy="13" r="8.5" fill="${rim}"/>
+          <circle cx="70" cy="13" r="8.5" fill="${rim}"/>`;
+      } else if (style === 'pocket') {
+        extras = `
+          <rect x="44" y="4" width="12" height="10" rx="3" fill="${rim}"/>
+          <circle cx="50" cy="3" r="5" fill="none" stroke="${rim}" stroke-width="3"/>`;
+      }
+      return `<svg viewBox="0 0 100 104" width="100%" height="100%">
+        ${extras}
+        <circle cx="50" cy="54" r="42" fill="${rim}"/>
+        <circle cx="50" cy="54" r="35" fill="#fffdf6"/>
+        ${ticks}
+        <g class="handm"><line x1="50" y1="54" x2="50" y2="29" stroke="${rim}" stroke-width="4.5" stroke-linecap="round"/></g>
+        <g class="handh"><line x1="50" y1="54" x2="50" y2="37" stroke="#5b6470" stroke-width="5.5" stroke-linecap="round"/></g>
+        <circle cx="50" cy="54" r="4" fill="#5b6470"/>
+        <g class="eyes">
+          <circle cx="39" cy="47" r="3.6" fill="#3b3b3b"/>
+          <circle cx="61" cy="47" r="3.6" fill="#3b3b3b"/>
+        </g>
+        <path d="M 42 63 Q 50 71 58 63" stroke="#3b3b3b" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <ellipse cx="31" cy="58" rx="5" ry="3.4" fill="#ffb3c1" opacity="0.75"/>
+        <ellipse cx="69" cy="58" rx="5" ry="3.4" fill="#ffb3c1" opacity="0.75"/>
+      </svg>`;
+    }
+
+    document.getElementById('startclock').innerHTML = clockSVG('#4dabf7', 'alarm');
+    document.getElementById('cuckooface').innerHTML = clockSVG('#ffd43b', 'plain');
+
+    /* ---------- sesler (Web Audio, dosya gerekmez) ---------- */
+    function getCtx() {
+      if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playNote(freq, when, dur, vol, type) {
+      const ctx = getCtx();
+      if (!ctx) return;
+      try {
+        const t = ctx.currentTime + (when || 0);
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = type || 'triangle';
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+      } catch (e) {}
+    }
+
+    // patlatma: melodinin sıradaki notası + tiz eşlik
+    function playPop() {
+      const f = N[MELODY[melodyIdx % MELODY.length]];
+      melodyIdx++;
+      playNote(f, 0, 0.28, 0.3, 'triangle');
+      playNote(f * 2, 0, 0.18, 0.09, 'sine');
+    }
+    // boş dokunuş: yumuşak tek nota (her dokunuş ödüllenir)
+    function playSoft() {
+      playNote(392, 0, 0.15, 0.12, 'sine');
+    }
+    // kutlama fanfarı
+    function playFanfare() {
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+        playNote(f, i * 0.09, 0.3, 0.22, 'triangle');
+      });
+    }
+    // guguk kuşu: inen üçlü "gu-guk!"
+    function playCuckoo() {
+      playNote(784, 0, 0.25, 0.32, 'sine');
+      playNote(622, 0.24, 0.4, 0.32, 'sine');
+    }
+    // saat doğarken minik tik sesi
+    let tickToggle = false;
+    function playTick() {
+      const ctx = getCtx();
+      if (!ctx) return;
+      try {
+        tickToggle = !tickToggle;
+        const t = ctx.currentTime;
+        const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.06), ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = tickToggle ? 1200 : 900;
+        filter.Q.value = 12;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.18, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        noise.connect(filter); filter.connect(g); g.connect(ctx.destination);
+        noise.start(t); noise.stop(t + 0.06);
+      } catch (e) {}
+    }
+
+    function vibrate(pattern) {
+      if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} }
+    }
+
+    /* ---------- bulutlar + yıldızlar ---------- */
+    (function makeClouds() {
+      const cfg = [
+        { top: '12%', dur: 46, delay: -8,  size: 95 },
+        { top: '30%', dur: 62, delay: -30, size: 75 },
+        { top: '52%', dur: 54, delay: -50, size: 85 },
+      ];
+      cfg.forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'cloud';
+        el.textContent = '☁️';
+        el.style.cssText = `top:${c.top};left:0;font-size:${c.size}px;animation-duration:${c.dur}s;animation-delay:${c.delay}s;`;
+        document.getElementById('sky').appendChild(el);
+      });
+    })();
+
+    (function makeStars() {
+      const sky = document.getElementById('nightsky');
+      for (let i = 0; i < 26; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        s.textContent = '✦';
+        s.style.cssText =
+          `left:${Math.random() * 96}%;top:${Math.random() * 62}%;` +
+          `font-size:${8 + Math.random() * 14}px;` +
+          `animation-duration:${1.8 + Math.random() * 2.2}s;` +
+          `animation-delay:${-Math.random() * 3}s;`;
+        sky.appendChild(s);
+      }
+    })();
+
+    /* ---------- gündüz / gece döngüsü ---------- */
+    function toggleNight() {
+      const goingNight = !document.body.classList.contains('night');
+      document.body.classList.toggle('night', goingNight);
+      nightTimer = setTimeout(toggleNight, goingNight ? 75000 : 110000);
+    }
+
+    /* ---------- saat doğurma ---------- */
+    function spawnLoop() {
+      if (!running) return;
+      if (activeClocks.size < 5) spawnClock();
+      spawnTimer = setTimeout(spawnLoop, 1200 + Math.random() * 700);
+    }
+
+    function spawnClock() {
+      const vw = window.innerWidth;
+      const size = 110 + Math.floor(Math.random() * 50);
+      const left = 8 + Math.floor(Math.random() * Math.max(10, vw - size - 16));
+      const dur = 8 + Math.random() * 5;
+      const rim = RIM_COLORS[Math.floor(Math.random() * RIM_COLORS.length)];
+      const style = Math.random() < 0.7 ? 'alarm' : 'pocket';
+
+      const c = document.createElement('div');
+      c.className = 'clock';
+      c.style.cssText = `width:${size}px;height:${Math.round(size * 1.04)}px;left:${left}px;animation-duration:${dur}s;`;
+
+      const sway = document.createElement('div');
+      sway.className = 'sway';
+      sway.style.animationDuration = (1.8 + Math.random()) + 's';
+      sway.innerHTML = clockSVG(rim, style);
+      c.appendChild(sway);
+
+      c.addEventListener('animationend', () => {
+        if (!c.dataset.popped) { activeClocks.delete(c); c.remove(); }
+      });
+      // animationend bazı durumlarda gelmeyebilir — garanti temizlik
+      setTimeout(() => {
+        if (!c.dataset.popped && c.parentNode) { activeClocks.delete(c); c.remove(); }
+      }, (dur + 1) * 1000);
+
+      game.appendChild(c);
+      activeClocks.add(c);
+      playTick();
+    }
+
+    /* ---------- dokunma: her dokunuş bir şey yapar ---------- */
+    game.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (!running) return;
+      const x = e.clientX, y = e.clientY;
+
+      // en yakın saati bul — bebek parmakları için cömert vuruş alanı
+      let best = null, bestD = 1e9;
+      activeClocks.forEach(c => {
+        if (c.dataset.popped) return;
+        const r = c.getBoundingClientRect();
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const d = Math.hypot(x - cx, y - cy);
+        if (d < r.width / 2 + 48 && d < bestD) { bestD = d; best = { c, cx, cy }; }
+      });
+
+      if (best) {
+        popClock(best.c, best.cx, best.cy);
+      } else {
+        showSparks(x, y, 3, 0.55);
+        playSoft();
+        vibrate(12);
+      }
+    });
+
+    function popClock(c, cx, cy) {
+      c.dataset.popped = '1';
+      activeClocks.delete(c);
+      c.style.animationPlayState = 'paused';
+      c.querySelector('.sway').classList.add('burst');
+      setTimeout(() => c.remove(), 340);
+
+      count++;
+      countEl.textContent = '⭐ ' + count;
+      countEl.classList.remove('bump');
+      void countEl.offsetWidth;
+      countEl.classList.add('bump');
+
+      playPop();
+      vibrate(40);
+      showSparks(cx, cy, 8, 1);
+      miniConfetti(cx, cy);
+
+      if (count % 15 === 0) cuckooShow();
+      else if (count % 10 === 0) celebrate();
+    }
+
+    /* ---------- efektler ---------- */
+    function showSparks(cx, cy, n, scale) {
+      for (let i = 0; i < n; i++) {
+        const s = document.createElement('div');
+        s.className = 'spark';
+        s.textContent = SPARKS[Math.floor(Math.random() * SPARKS.length)];
+        const angle = (Math.PI * 2 / n) * i + Math.random() * 0.6;
+        const dist = 50 + Math.random() * 45;
+        s.style.cssText =
+          `left:${Math.round(cx - 14)}px;top:${Math.round(cy - 14)}px;` +
+          `font-size:${Math.round(26 * scale)}px;` +
+          `--tx:${Math.round(Math.cos(angle) * dist)}px;` +
+          `--ty:${Math.round(Math.sin(angle) * dist)}px;` +
+          `--rot:${Math.round((Math.random() - 0.5) * 180)}deg;`;
+        document.body.appendChild(s);
+        setTimeout(() => s.remove(), 750);
+      }
+    }
+
+    function miniConfetti(cx, cy) {
+      for (let i = 0; i < 8; i++) {
+        const p = document.createElement('div');
+        p.className = 'spark';
+        const w = 7 + Math.random() * 6;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 60 + Math.random() * 60;
+        p.style.cssText =
+          `left:${cx}px;top:${cy}px;width:${w}px;height:${w}px;` +
+          `background:${CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)]};` +
+          `border-radius:${Math.random() > 0.5 ? '50%' : '2px'};` +
+          `--tx:${Math.round(Math.cos(angle) * dist)}px;` +
+          `--ty:${Math.round(Math.sin(angle) * dist)}px;` +
+          `--rot:${Math.round(Math.random() * 360)}deg;`;
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 750);
+      }
+    }
+
+    function confettiRain(n) {
+      for (let i = 0; i < n; i++) {
+        setTimeout(() => {
+          const c = document.createElement('div');
+          c.className = 'confetti';
+          const w = 7 + Math.random() * 9;
+          c.style.cssText =
+            `left:${Math.random() * 100}vw;top:-16px;` +
+            `width:${w}px;height:${w * (0.6 + Math.random() * 0.8)}px;` +
+            `background:${CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)]};` +
+            `border-radius:${Math.random() > 0.5 ? '50%' : '2px'};` +
+            `animation-duration:${1.6 + Math.random() * 1.8}s;`;
+          document.body.appendChild(c);
+          setTimeout(() => c.remove(), 3600);
+        }, i * 35);
+      }
+    }
+
+    function celebrate() {
+      playFanfare();
+      vibrate([60, 40, 60]);
+      bigparty.textContent = PARTY[Math.floor(Math.random() * PARTY.length)];
+      bigparty.classList.remove('show');
+      void bigparty.offsetWidth;
+      bigparty.classList.add('show');
+      confettiRain(50);
+    }
+
+    /* ---------- guguklu saat sürprizi ---------- */
+    function cuckooShow() {
+      if (cuckooBusy) { celebrate(); return; }
+      cuckooBusy = true;
+      confettiRain(40);
+      cuckooEl.classList.add('show');
+      setTimeout(() => cuckooEl.classList.add('open'), 750);
+      setTimeout(() => { cuckooEl.classList.add('bird'); playCuckoo(); vibrate([80, 60, 80]); }, 1150);
+      setTimeout(() => playCuckoo(), 2050);
+      setTimeout(() => cuckooEl.classList.remove('bird'), 2900);
+      setTimeout(() => cuckooEl.classList.remove('open'), 3300);
+      setTimeout(() => cuckooEl.classList.remove('show'), 3800);
+      setTimeout(() => { cuckooBusy = false; }, 4700);
+    }
+
+    /* ---------- başlat ---------- */
+    startscreen.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (running) return;
+      running = true;
+      getCtx();          // ses kilidini ilk dokunuşta aç (mobil gereksinimi)
+      playFanfare();
+      startscreen.style.display = 'none';
+      spawnLoop();
+      nightTimer = setTimeout(toggleNight, 110000);
+    });
+
+    // uzun basma menüsünü ve çift dokunma yakınlaştırmayı engelle
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('dblclick', e => e.preventDefault());
+
+    // PWA: çevrimdışı çalışma + ana ekrana eklenince uygulama gibi açılma
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
